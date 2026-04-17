@@ -17,9 +17,13 @@ def main() -> None:
 
     console.print(
         Panel(
-            "Phase 1 bootstrap complete.\n\n"
-            "The package, CLI, environment handling, and project layout are ready.\n"
-            "The full agent runtime will arrive in Phase 2.\n\n"
+            "Phase 1 runtime foundation is now in place.\n\n"
+            "The project has moved beyond bootstrap and now includes:\n"
+            "- modular runtime boundaries\n"
+            "- memory file injection scaffolding\n"
+            "- context pipeline scaffolding\n"
+            "- session-aware architecture\n\n"
+            "Interactive runtime wiring is the next step.\n\n"
             f"Configured provider: {provider}\n"
             f"Configured model: {model}",
             title="MyOpenClaw",

@@ -1,4 +1,3 @@
 """
-Phase 1 placeholder for sandboxed file and shell tools.
+Workspace sandbox tools land in a later phase.
 """
-

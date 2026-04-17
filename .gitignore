@@ -27,6 +27,7 @@ htmlcov/
 # Local environment files
 .env
 PLAN.md
+docs/phase1_refactor_patch_plan.md
 
 # Local IDE/editor files
 .DS_Store
@@ -34,5 +35,6 @@ PLAN.md
 .vscode/
 
 # Runtime data
+*.log
 logs/
 workspace/
