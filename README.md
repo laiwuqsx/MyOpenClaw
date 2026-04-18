@@ -1,12 +1,12 @@
-# MyOpenClaw
+# MYCLAW
 
-MyOpenClaw is a local agent runtime for transparent, controllable, and extensible AI workflows.
+MYCLAW is a local agent runtime for transparent, controllable, and extensible AI workflows.
 
 It is designed for developers who want more than a chat wrapper. The project focuses on making agent behavior observable, bounded, and practical in a local workspace environment.
 
 ## What It Does
 
-MyOpenClaw provides a command-line agent that can:
+MYCLAW provides a command-line agent that can:
 
 - respond to user instructions
 - call local tools
@@ -32,7 +32,7 @@ This makes the agent easier to debug, inspect, and trust.
 
 ### Constrained Local Workspace
 
-MyOpenClaw is built around a dedicated local workspace model.
+MYCLAW is built around a dedicated local workspace model.
 
 - file operations are restricted to a controlled area
 - shell commands execute within workspace boundaries
@@ -73,7 +73,7 @@ This is useful for:
 
 ### Background Task Handling
 
-MyOpenClaw can support scheduled reminders and recurring tasks through a heartbeat-style task loop.
+MYCLAW can support scheduled reminders and recurring tasks through a heartbeat-style task loop.
 
 Background events are fed back into the same runtime instead of being handled by a disconnected subsystem.
 
@@ -87,7 +87,7 @@ Background events are fed back into the same runtime instead of being handled by
 
 ## Design Philosophy
 
-MyOpenClaw is built around a few practical ideas:
+MYCLAW is built around a few practical ideas:
 
 - local-first execution
 - transparent behavior over black-box magic

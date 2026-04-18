@@ -1,5 +1,6 @@
 from typing import Optional
 
+from langchain_core.runnables import RunnableConfig
 from langchain_core.tools import BaseTool
 from langgraph.graph import END, START, StateGraph
 from langgraph.prebuilt import ToolNode, tools_condition
@@ -24,7 +25,7 @@ def create_runtime(
     llm_with_tools = llm.bind_tools(actual_tools)
     tool_node = ToolNode(actual_tools)
 
-    def agent_node(state: AgentState, config: dict) -> dict:
+    def agent_node(state: AgentState, config: RunnableConfig) -> dict:
         session_context = build_session_context(
             config=config,
             provider_name=provider_name,
