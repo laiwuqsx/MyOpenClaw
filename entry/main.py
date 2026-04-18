@@ -63,7 +63,7 @@ def print_banner(provider: str, model: str) -> None:
     )
 
     print(logo)
-    print(f"{white}{bold} MyOpenClaw Local Runtime {reset}")
+    print(f"{white}{bold} MYCLAW Local Runtime {reset}")
     print()
     print(f"{silver}{quote}{reset}")
     print()
@@ -166,7 +166,7 @@ async def run_interactive_runtime(provider: str, model: str) -> None:
                 if not user_input:
                     continue
                 if user_input.lower() in {"/exit", "/quit"}:
-                    cprint("  \033[38;5;84mMyOpenClaw shutting down.\033[0m")
+                    cprint("  \033[38;5;84mMYCLAW shutting down.\033[0m")
                     break
 
                 cprint(f"\033[48;2;38;38;38m\033[38;5;255m  ❯ {user_input}  \033[0m\n")
@@ -203,7 +203,7 @@ async def run_interactive_runtime(provider: str, model: str) -> None:
                     console.print(
                         Panel(
                             f"Runtime error:\n{exc}",
-                            title="MyOpenClaw",
+                            title="MYCLAW",
                             border_style="red",
                         )
                     )
@@ -221,7 +221,7 @@ def main() -> None:
     if not provider or provider == "unset" or not model or model == "unset":
         console.print(
             Panel(
-                "MyOpenClaw is not configured yet.\n\n"
+                "MYCLAW is not configured yet.\n\n"
                 "Run `myopenclaw config` first or create `.env` from `.env.example`.",
                 title="Boot Incomplete",
                 border_style="yellow",
@@ -236,7 +236,7 @@ def main() -> None:
         console.print(
             Panel(
                 f"Failed to start the runtime.\n\n{exc}",
-                title="MyOpenClaw Startup Error",
+                title="MYCLAW Startup Error",
                 border_style="red",
             )
         )

@@ -10,7 +10,7 @@ def main() -> None:
         Panel(
             "Monitor bootstrap is in place.\n"
             "Live audit rendering will be implemented in a later phase.",
-            title="MyOpenClaw Monitor",
+            title="MYCLAW Monitor",
             border_style="magenta",
         )
     )

@@ -18,7 +18,7 @@ if PROJECT_ROOT not in sys.path:
 
 os.chdir(PROJECT_ROOT)
 
-app = typer.Typer(help="MyOpenClaw - Transparent local agent runtime")
+app = typer.Typer(help="MYCLAW - Transparent local agent runtime")
 console = Console()
 
 prompt_style = questionary.Style(
@@ -42,7 +42,7 @@ def _ensure_env_file() -> None:
 def _show_boot_error() -> None:
     console.print(
         Panel(
-            "MyOpenClaw is not configured yet.\n\n"
+            "MYCLAW is not configured yet.\n\n"
             "Run `myopenclaw config` first or create a `.env` file from `.env.example`.",
             title="Boot Incomplete",
             border_style="yellow",
@@ -55,9 +55,9 @@ def config_wizard() -> None:
     _ensure_env_file()
     console.print(
         Panel(
-            "Configure the default model provider for MyOpenClaw.\n"
+            "Configure the default model provider for MYCLAW.\n"
             "Phase 1 keeps this lightweight: values are saved locally to `.env`.",
-            title="MyOpenClaw Config",
+            title="MYCLAW Config",
             border_style="cyan",
         )
     )
