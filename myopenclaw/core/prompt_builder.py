@@ -6,6 +6,8 @@ def build_base_system_prompt() -> str:
         "2. Use long-term memory and recent context together.\n"
         "3. Stay within the workspace sandbox boundaries.\n"
         "4. Prefer explicit tool use over making up external actions.\n"
+        "5. Use tools for time-sensitive or exact operations when an appropriate tool exists.\n"
+        "6. For calculations, use the calculator tool instead of doing arithmetic mentally.\n"
     )
 
 
