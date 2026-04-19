@@ -27,6 +27,7 @@ htmlcov/
 # Local environment files
 .env
 PLAN.md
+AGENT_CONTEXT.md
 docs/phase1_refactor_patch_plan.md
 
 # Local IDE/editor files
