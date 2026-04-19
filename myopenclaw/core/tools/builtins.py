@@ -3,6 +3,12 @@ from datetime import datetime
 
 from ..config import DAILY_MEMORY_DIR, LEGACY_USER_PROFILE_PATH
 from .base import myopenclaw_tool
+from .sandbox_tools import (
+    execute_office_shell,
+    list_office_files,
+    read_office_file,
+    write_office_file,
+)
 
 
 @myopenclaw_tool
@@ -59,4 +65,8 @@ BUILTIN_TOOLS = [
     read_user_profile,
     save_user_profile,
     append_daily_memory,
+    list_office_files,
+    read_office_file,
+    write_office_file,
+    execute_office_shell,
 ]
