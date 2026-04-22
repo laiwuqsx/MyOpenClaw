@@ -4,7 +4,9 @@ import unittest
 from unittest.mock import patch
 
 from myopenclaw.core.tools.builtins import (
+    append_project_memory,
     append_daily_memory,
+    read_project_memory,
     read_daily_memory,
     read_user_profile,
     save_user_profile,
@@ -32,7 +34,7 @@ class TestMemoryTools(unittest.TestCase):
             self.assertIn("current profile", result)
             self.assertIn("legacy profile", result)
 
-    def test_save_user_profile_writes_current_and_legacy_files(self):
+    def test_save_user_profile_writes_global_user_file_only(self):
         with tempfile.TemporaryDirectory() as tmpdir:
             user_path = os.path.join(tmpdir, "USER.md")
             legacy_path = os.path.join(tmpdir, "memory", "user_profile.md")
@@ -43,11 +45,21 @@ class TestMemoryTools(unittest.TestCase):
             ):
                 result = save_user_profile.invoke({"new_content": "remember this"})
 
-            self.assertIn("User profile saved", result)
+            self.assertIn("Global user profile saved", result)
             with open(user_path, "r", encoding="utf-8") as fh:
                 self.assertEqual(fh.read(), "remember this")
-            with open(legacy_path, "r", encoding="utf-8") as fh:
-                self.assertEqual(fh.read(), "remember this")
+            self.assertFalse(os.path.exists(legacy_path))
+
+    def test_project_memory_round_trip(self):
+        with tempfile.TemporaryDirectory() as tmpdir:
+            memory_path = os.path.join(tmpdir, "memory", "MEMORY.md")
+
+            with patch("myopenclaw.core.tools.builtins.MEMORY_MD_PATH", memory_path):
+                append_result = append_project_memory.invoke({"note": "phase 4.5"})
+                read_result = read_project_memory.invoke({})
+
+            self.assertIn("Project memory appended", append_result)
+            self.assertIn("phase 4.5", read_result)
 
     def test_append_daily_memory_validates_date(self):
         result = append_daily_memory.invoke({"note": "note", "date": "04-21-2026"})

@@ -16,8 +16,9 @@ class TestMemoryInjection(unittest.TestCase):
         main_specs = build_memory_specs("main")
         heartbeat_specs = build_memory_specs("heartbeat")
 
-        self.assertTrue(any(spec.name == "AGENTS.md" for spec in main_specs))
-        self.assertTrue(any(spec.name == "PROJECT.md" for spec in main_specs))
+        self.assertTrue(any(spec.name == "USER.md" for spec in main_specs))
+        self.assertTrue(any(spec.name == "OPENCLAW.md" for spec in main_specs))
+        self.assertTrue(any(spec.name == "MEMORY.md" for spec in main_specs))
         self.assertTrue(any(spec.name == "HEARTBEAT.md" for spec in heartbeat_specs))
         self.assertFalse(any(spec.name == "HEARTBEAT.md" for spec in main_specs))
         self.assertFalse(any(spec.name == "legacy_user_profile.md" for spec in main_specs))
@@ -28,56 +29,63 @@ class TestMemoryInjection(unittest.TestCase):
 
     def test_load_injected_memory_blocks_and_format(self):
         with tempfile.TemporaryDirectory() as tmpdir:
-            agents_path = os.path.join(tmpdir, "AGENTS.md")
-            project_path = os.path.join(tmpdir, "PROJECT.md")
+            openclaw_path = os.path.join(tmpdir, "OPENCLAW.md")
+            local_openclaw_path = os.path.join(tmpdir, ".myopenclaw", "OPENCLAW.md")
             soul_path = os.path.join(tmpdir, "SOUL.md")
             user_path = os.path.join(tmpdir, "USER.md")
             memory_path = os.path.join(tmpdir, "MEMORY.md")
+            global_memory_path = os.path.join(tmpdir, "GLOBAL_MEMORY.md")
             legacy_path = os.path.join(tmpdir, "user_profile.md")
             daily_dir = os.path.join(tmpdir, "memory")
             os.makedirs(daily_dir, exist_ok=True)
 
-            with open(agents_path, "w", encoding="utf-8") as fh:
-                fh.write("agents memory")
+            with open(openclaw_path, "w", encoding="utf-8") as fh:
+                fh.write("project instructions")
             with open(user_path, "w", encoding="utf-8") as fh:
                 fh.write("user memory")
+            with open(memory_path, "w", encoding="utf-8") as fh:
+                fh.write("project auto memory")
             with open(os.path.join(daily_dir, "2026-04-17.md"), "w", encoding="utf-8") as fh:
                 fh.write("daily memory")
 
-            with patch("myopenclaw.core.memory.injection.AGENTS_MD_PATH", agents_path), \
-                patch("myopenclaw.core.memory.injection.PROJECT_MD_PATH", project_path), \
+            with patch("myopenclaw.core.memory.injection.OPENCLAW_MD_PATH", openclaw_path), \
+                patch("myopenclaw.core.memory.injection.LOCAL_OPENCLAW_MD_PATH", local_openclaw_path), \
                 patch("myopenclaw.core.memory.injection.SOUL_MD_PATH", soul_path), \
-                patch("myopenclaw.core.memory.injection.USER_MD_PATH", user_path), \
+                patch("myopenclaw.core.memory.injection.GLOBAL_USER_MD_PATH", user_path), \
                 patch("myopenclaw.core.memory.injection.MEMORY_MD_PATH", memory_path), \
+                patch("myopenclaw.core.memory.injection.GLOBAL_MEMORY_MD_PATH", global_memory_path), \
                 patch("myopenclaw.core.memory.injection.LEGACY_USER_PROFILE_PATH", legacy_path), \
                 patch("myopenclaw.core.memory.injection.DAILY_MEMORY_DIR", daily_dir):
                 blocks = load_injected_memory_blocks("main", daily_memory_days=2)
 
-            self.assertTrue(any(block.name == "AGENTS.md" for block in blocks))
+            self.assertTrue(any(block.name == "OPENCLAW.md" for block in blocks))
             self.assertTrue(any(block.name == "USER.md" for block in blocks))
+            self.assertTrue(any(block.name == "MEMORY.md" for block in blocks))
             self.assertTrue(any(block.source_type == "daily_memory" for block in blocks))
 
             rendered = format_memory_blocks_for_prompt(blocks)
-            self.assertIn("[Memory: AGENTS.md]", rendered)
+            self.assertIn("[Memory: OPENCLAW.md]", rendered)
+            self.assertIn("project auto memory", rendered)
             self.assertIn("daily memory", rendered)
 
     def test_daily_memory_is_not_loaded_by_default(self):
         with tempfile.TemporaryDirectory() as tmpdir:
-            agents_path = os.path.join(tmpdir, "AGENTS.md")
-            project_path = os.path.join(tmpdir, "PROJECT.md")
+            openclaw_path = os.path.join(tmpdir, "OPENCLAW.md")
+            local_openclaw_path = os.path.join(tmpdir, ".myopenclaw", "OPENCLAW.md")
             daily_dir = os.path.join(tmpdir, "memory")
             os.makedirs(daily_dir, exist_ok=True)
 
-            with open(agents_path, "w", encoding="utf-8") as fh:
-                fh.write("agents memory")
+            with open(openclaw_path, "w", encoding="utf-8") as fh:
+                fh.write("project instructions")
             with open(os.path.join(daily_dir, "2026-04-17.md"), "w", encoding="utf-8") as fh:
                 fh.write("daily memory")
 
-            with patch("myopenclaw.core.memory.injection.AGENTS_MD_PATH", agents_path), \
-                patch("myopenclaw.core.memory.injection.PROJECT_MD_PATH", project_path), \
+            with patch("myopenclaw.core.memory.injection.OPENCLAW_MD_PATH", openclaw_path), \
+                patch("myopenclaw.core.memory.injection.LOCAL_OPENCLAW_MD_PATH", local_openclaw_path), \
                 patch("myopenclaw.core.memory.injection.SOUL_MD_PATH", os.path.join(tmpdir, "SOUL.md")), \
-                patch("myopenclaw.core.memory.injection.USER_MD_PATH", os.path.join(tmpdir, "USER.md")), \
+                patch("myopenclaw.core.memory.injection.GLOBAL_USER_MD_PATH", os.path.join(tmpdir, "USER.md")), \
                 patch("myopenclaw.core.memory.injection.MEMORY_MD_PATH", os.path.join(tmpdir, "MEMORY.md")), \
+                patch("myopenclaw.core.memory.injection.GLOBAL_MEMORY_MD_PATH", os.path.join(tmpdir, "GLOBAL_MEMORY.md")), \
                 patch("myopenclaw.core.memory.injection.LEGACY_USER_PROFILE_PATH", os.path.join(tmpdir, "user_profile.md")), \
                 patch("myopenclaw.core.memory.injection.DAILY_MEMORY_DIR", daily_dir):
                 blocks = load_injected_memory_blocks("main")

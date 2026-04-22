@@ -32,7 +32,7 @@ class TestContextPipeline(unittest.TestCase):
         )
 
         with patch("myopenclaw.core.context_pipeline.load_injected_memory_blocks", return_value=[]), patch(
-            "myopenclaw.core.context_pipeline.load_thread_summary",
+            "myopenclaw.core.context_pipeline.load_project_summary",
             return_value="",
         ):
             prepared = prepare_context(state=state, llm=FakeLLM(), session_context=session_context)
@@ -58,13 +58,13 @@ class TestContextPipeline(unittest.TestCase):
         )
 
         with patch("myopenclaw.core.context_pipeline.load_injected_memory_blocks", return_value=[]), patch(
-            "myopenclaw.core.context_pipeline.load_thread_summary",
+            "myopenclaw.core.context_pipeline.load_project_summary",
             return_value="",
-        ), patch("myopenclaw.core.context_pipeline.save_thread_summary") as mock_save:
+        ), patch("myopenclaw.core.context_pipeline.save_project_summary") as mock_save:
             prepared = prepare_context(state=state, llm=FakeLLM(), session_context=session_context)
 
         self.assertEqual(prepared.updated_summary, "updated summary")
-        mock_save.assert_called_once_with("t1", "updated summary")
+        mock_save.assert_called_once_with("updated summary")
         self.assertEqual(len([m for m in prepared.messages_for_llm if isinstance(m, SystemMessage)]), 1)
         self.assertLess(len(prepared.messages_for_llm), len(messages))
 
@@ -85,7 +85,7 @@ class TestContextPipeline(unittest.TestCase):
         )
 
         with patch("myopenclaw.core.context_pipeline.load_injected_memory_blocks", return_value=[]), patch(
-            "myopenclaw.core.context_pipeline.load_thread_summary",
+            "myopenclaw.core.context_pipeline.load_project_summary",
             return_value="",
         ):
             prepared = prepare_context(state=state, llm=FakeLLM(), session_context=session_context)
@@ -93,7 +93,7 @@ class TestContextPipeline(unittest.TestCase):
         self.assertEqual(prepared.updated_summary, "")
         self.assertNotIn("Working Summary", prepared.messages_for_llm[0].content)
 
-    def test_prepare_context_loads_thread_summary_when_state_is_empty(self):
+    def test_prepare_context_loads_project_summary_when_state_is_empty(self):
         state = {
             "messages": [
                 HumanMessage(content="continue"),
@@ -110,7 +110,7 @@ class TestContextPipeline(unittest.TestCase):
         )
 
         with patch("myopenclaw.core.context_pipeline.load_injected_memory_blocks", return_value=[]), patch(
-            "myopenclaw.core.context_pipeline.load_thread_summary",
+            "myopenclaw.core.context_pipeline.load_project_summary",
             return_value="loaded summary",
         ):
             prepared = prepare_context(state=state, llm=FakeLLM(), session_context=session_context)

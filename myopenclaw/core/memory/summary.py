@@ -1,7 +1,7 @@
 import os
 import re
 
-from ..config import SUMMARY_DIR
+from ..config import SUMMARY_DIR, SUMMARY_MD_PATH
 
 
 EMPTY_SUMMARY_MARKERS = {
@@ -51,6 +51,32 @@ def _safe_summary_filename(thread_id: str) -> str:
 
 def get_thread_summary_path(thread_id: str) -> str:
     return os.path.join(SUMMARY_DIR, f"{_safe_summary_filename(thread_id)}.md")
+
+
+def get_project_summary_path() -> str:
+    return SUMMARY_MD_PATH
+
+
+def load_project_summary() -> str:
+    if os.path.exists(SUMMARY_MD_PATH):
+        try:
+            with open(SUMMARY_MD_PATH, "r", encoding="utf-8", errors="ignore") as fh:
+                return normalize_summary_text(fh.read())
+        except Exception:
+            return ""
+
+    # Compatibility fallback for summaries written before Phase 4.5 simplified
+    # storage to one project-level SUMMARY.md.
+    return load_thread_summary("local_main")
+
+
+def save_project_summary(summary: str) -> str:
+    normalized = normalize_summary_text(summary)
+    os.makedirs(os.path.dirname(SUMMARY_MD_PATH), exist_ok=True)
+    with open(SUMMARY_MD_PATH, "w", encoding="utf-8") as fh:
+        if normalized:
+            fh.write(normalized.rstrip() + "\n")
+    return SUMMARY_MD_PATH
 
 
 def load_thread_summary(thread_id: str) -> str:

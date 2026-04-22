@@ -12,6 +12,7 @@ from rich.panel import Panel
 ENTRY_DIR = os.path.dirname(os.path.abspath(__file__))
 PROJECT_ROOT = os.path.dirname(ENTRY_DIR)
 ENV_PATH = os.path.join(PROJECT_ROOT, ".env")
+os.environ.setdefault("MYOPENCLAW_CWD", os.getcwd())
 
 if PROJECT_ROOT not in sys.path:
     sys.path.insert(0, PROJECT_ROOT)
@@ -20,7 +21,9 @@ os.chdir(PROJECT_ROOT)
 
 app = typer.Typer(help="MYCLAW - Transparent local agent runtime")
 memory_app = typer.Typer(help="Inspect local memory files")
+project_app = typer.Typer(help="Inspect or initialize project context")
 app.add_typer(memory_app, name="memory")
+app.add_typer(project_app, name="project")
 console = Console()
 
 prompt_style = questionary.Style(
@@ -168,14 +171,24 @@ def _read_text(path: str) -> str:
 
 @memory_app.command("show")
 def show_memory() -> None:
-    from myopenclaw.core.config import AGENTS_MD_PATH, MEMORY_MD_PATH, PROJECT_MD_PATH, SOUL_MD_PATH, USER_MD_PATH
+    from myopenclaw.core.config import (
+        AGENTS_MD_PATH,
+        GLOBAL_MEMORY_MD_PATH,
+        LOCAL_OPENCLAW_MD_PATH,
+        MEMORY_MD_PATH,
+        OPENCLAW_MD_PATH,
+        SOUL_MD_PATH,
+        USER_MD_PATH,
+    )
 
     paths = [
-        ("AGENTS.md", AGENTS_MD_PATH),
-        ("PROJECT.md", PROJECT_MD_PATH),
-        ("SOUL.md", SOUL_MD_PATH),
-        ("USER.md", USER_MD_PATH),
-        ("MEMORY.md", MEMORY_MD_PATH),
+        ("Global USER.md", USER_MD_PATH),
+        ("Global MEMORY.md", GLOBAL_MEMORY_MD_PATH),
+        ("Project OPENCLAW.md", OPENCLAW_MD_PATH),
+        ("Local .myopenclaw/OPENCLAW.md", LOCAL_OPENCLAW_MD_PATH),
+        ("Legacy AGENTS.md", AGENTS_MD_PATH),
+        ("Global SOUL.md", SOUL_MD_PATH),
+        ("Project auto-memory MEMORY.md", MEMORY_MD_PATH),
     ]
     for name, path in paths:
         content = _read_text(path)
@@ -228,15 +241,57 @@ def show_recent_memory(days: int = typer.Option(3, "--days", "-d", min=1, help="
 
 
 @memory_app.command("summary")
-def show_summary(thread_id: str = typer.Option("local_main", "--thread", "-t", help="Thread id to inspect.")) -> None:
-    from myopenclaw.core.memory.summary import get_thread_summary_path, load_thread_summary
+def show_summary() -> None:
+    from myopenclaw.core.memory.summary import get_project_summary_path, load_project_summary
 
-    content = load_thread_summary(thread_id)
+    content = load_project_summary()
     console.print(
         Panel(
-            content or f"No summary found at {get_thread_summary_path(thread_id)}.",
-            title=f"Summary: {thread_id}",
+            content or f"No summary found at {get_project_summary_path()}.",
+            title="Project Summary",
             border_style="cyan" if content else "dim",
+        )
+    )
+
+
+@project_app.command("current")
+def show_current_project() -> None:
+    from myopenclaw.core.config import ACTIVE_PROJECT_ROOT, PROJECT_DATA_DIR, PROJECT_ID, PROJECT_LOCAL_DIR, WORKSPACE_DIR
+
+    console.print(
+        Panel(
+            "\n".join(
+                [
+                    f"Project root: {ACTIVE_PROJECT_ROOT}",
+                    f"Project id: {PROJECT_ID}",
+                    f"Project data: {PROJECT_DATA_DIR}",
+                    f"Local config: {PROJECT_LOCAL_DIR}",
+                    f"Runtime workspace: {WORKSPACE_DIR}",
+                ]
+            ),
+            title="Current Project",
+            border_style="cyan",
+        )
+    )
+
+
+@project_app.command("init")
+def init_project() -> None:
+    from myopenclaw.core.config import ACTIVE_PROJECT_ROOT, LOCAL_OPENCLAW_MD_PATH, PROJECT_LOCAL_DIR
+
+    os.makedirs(PROJECT_LOCAL_DIR, exist_ok=True)
+    if not os.path.exists(LOCAL_OPENCLAW_MD_PATH):
+        with open(LOCAL_OPENCLAW_MD_PATH, "w", encoding="utf-8") as fh:
+            fh.write(
+                "# OPENCLAW\n\n"
+                "## Project Instructions\n\n"
+                "- Add project-specific build, test, and architecture notes here.\n"
+            )
+    console.print(
+        Panel(
+            f"Initialized project context for:\n{ACTIVE_PROJECT_ROOT}\n\nCreated or reused:\n{PROJECT_LOCAL_DIR}",
+            title="Project Initialized",
+            border_style="green",
         )
     )
 

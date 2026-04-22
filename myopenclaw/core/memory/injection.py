@@ -2,13 +2,15 @@ from ..config import (
     AGENTS_MD_PATH,
     DAILY_MEMORY_DIR,
     DEFAULT_DAILY_MEMORY_DAYS,
+    GLOBAL_MEMORY_MD_PATH,
+    GLOBAL_USER_MD_PATH,
     HEARTBEAT_MD_PATH,
     INCLUDE_LEGACY_PROFILE,
     LEGACY_USER_PROFILE_PATH,
+    LOCAL_OPENCLAW_MD_PATH,
     MEMORY_MD_PATH,
-    PROJECT_MD_PATH,
+    OPENCLAW_MD_PATH,
     SOUL_MD_PATH,
-    USER_MD_PATH,
 )
 from .files import load_memory_file, load_recent_daily_memory
 from .models import LoadedMemoryBlock, MemoryFileSpec
@@ -26,11 +28,18 @@ def build_memory_specs(
         ]
     if session_mode == "main":
         specs = [
-            MemoryFileSpec("AGENTS.md", AGENTS_MD_PATH, load_in_modes={"main"}, description="Core runtime rules"),
-            MemoryFileSpec("PROJECT.md", PROJECT_MD_PATH, load_in_modes={"main"}, description="Project context and commands"),
-            MemoryFileSpec("SOUL.md", SOUL_MD_PATH, load_in_modes={"main"}, description="Assistant style guidance"),
-            MemoryFileSpec("USER.md", USER_MD_PATH, load_in_modes={"main"}, description="User-facing memory"),
-            MemoryFileSpec("MEMORY.md", MEMORY_MD_PATH, load_in_modes={"main"}, description="Durable memory"),
+            MemoryFileSpec("USER.md", GLOBAL_USER_MD_PATH, load_in_modes={"main"}, description="Global user preferences"),
+            MemoryFileSpec("OPENCLAW.md", OPENCLAW_MD_PATH, load_in_modes={"main"}, description="Project instructions"),
+            MemoryFileSpec(
+                ".myopenclaw/OPENCLAW.md",
+                LOCAL_OPENCLAW_MD_PATH,
+                load_in_modes={"main"},
+                description="Local project instructions",
+            ),
+            MemoryFileSpec("AGENTS.md", AGENTS_MD_PATH, load_in_modes={"main"}, description="Legacy project rules"),
+            MemoryFileSpec("SOUL.md", SOUL_MD_PATH, load_in_modes={"main"}, description="Global assistant style guidance"),
+            MemoryFileSpec("MEMORY.md", MEMORY_MD_PATH, load_in_modes={"main"}, description="Project auto-memory index"),
+            MemoryFileSpec("global_MEMORY.md", GLOBAL_MEMORY_MD_PATH, load_in_modes={"main"}, description="Global durable memory"),
         ]
         if include_legacy_profile:
             specs.append(
@@ -44,7 +53,7 @@ def build_memory_specs(
         return specs
     return [
         MemoryFileSpec("AGENTS.md", AGENTS_MD_PATH, description="Core runtime rules"),
-        MemoryFileSpec("PROJECT.md", PROJECT_MD_PATH, description="Project context and commands"),
+        MemoryFileSpec("OPENCLAW.md", OPENCLAW_MD_PATH, description="Project instructions"),
         MemoryFileSpec("SOUL.md", SOUL_MD_PATH, description="Assistant style guidance"),
     ]
 

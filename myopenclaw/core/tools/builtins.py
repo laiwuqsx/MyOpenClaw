@@ -1,7 +1,7 @@
 import os
 from datetime import datetime
 
-from ..config import DAILY_MEMORY_DIR, LEGACY_USER_PROFILE_PATH, USER_MD_PATH
+from ..config import DAILY_MEMORY_DIR, LEGACY_USER_PROFILE_PATH, MEMORY_MD_PATH, USER_MD_PATH
 from .base import myopenclaw_tool
 from .sandbox_tools import (
     execute_office_shell,
@@ -29,7 +29,7 @@ def calculator(expression: str) -> str:
 
 @myopenclaw_tool
 def read_user_profile() -> str:
-    """Read the current user memory, with legacy profile compatibility."""
+    """Read global user memory, with legacy profile compatibility."""
     sections = []
     if os.path.exists(USER_MD_PATH):
         with open(USER_MD_PATH, "r", encoding="utf-8", errors="ignore") as fh:
@@ -50,15 +50,32 @@ def read_user_profile() -> str:
 
 @myopenclaw_tool
 def save_user_profile(new_content: str) -> str:
-    """Overwrite current user memory and the legacy profile compatibility file."""
+    """Overwrite global user memory."""
     os.makedirs(os.path.dirname(USER_MD_PATH), exist_ok=True)
     with open(USER_MD_PATH, "w", encoding="utf-8") as fh:
         fh.write(new_content)
 
-    os.makedirs(os.path.dirname(LEGACY_USER_PROFILE_PATH), exist_ok=True)
-    with open(LEGACY_USER_PROFILE_PATH, "w", encoding="utf-8") as fh:
-        fh.write(new_content)
-    return "User profile saved to USER.md and legacy user_profile.md."
+    return "Global user profile saved to USER.md."
+
+
+@myopenclaw_tool
+def read_project_memory() -> str:
+    """Read the current project's auto-memory index."""
+    if not os.path.exists(MEMORY_MD_PATH):
+        return "No project auto-memory found."
+    with open(MEMORY_MD_PATH, "r", encoding="utf-8", errors="ignore") as fh:
+        content = fh.read().strip()
+    return content or "Project auto-memory is empty."
+
+
+@myopenclaw_tool
+def append_project_memory(note: str) -> str:
+    """Append a durable note to the current project's auto-memory index."""
+    os.makedirs(os.path.dirname(MEMORY_MD_PATH), exist_ok=True)
+    with open(MEMORY_MD_PATH, "a", encoding="utf-8") as fh:
+        prefix = "" if fh.tell() == 0 else "\n"
+        fh.write(f"{prefix}- {note}")
+    return "Project memory appended to MEMORY.md."
 
 
 @myopenclaw_tool
@@ -100,6 +117,8 @@ BUILTIN_TOOLS = [
     calculator,
     read_user_profile,
     save_user_profile,
+    read_project_memory,
+    append_project_memory,
     append_daily_memory,
     read_daily_memory,
     list_office_files,
