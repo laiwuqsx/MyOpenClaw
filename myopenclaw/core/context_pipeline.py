@@ -4,6 +4,7 @@ from langchain_core.messages import SystemMessage
 
 from .compaction import build_remove_commands, compact_context_messages, summarize_discarded_messages
 from .memory.injection import format_memory_blocks_for_prompt, load_injected_memory_blocks
+from .memory.summary import load_thread_summary, normalize_summary_text, save_thread_summary
 from .prompt_builder import build_system_prompt
 from .session_state import SessionContext
 
@@ -19,7 +20,9 @@ class PreparedContext:
 
 def prepare_context(state: dict, llm, session_context: SessionContext) -> PreparedContext:
     raw_messages = state.get("messages", [])
-    current_summary = state.get("summary", "")
+    current_summary = normalize_summary_text(state.get("summary", ""))
+    if not current_summary:
+        current_summary = load_thread_summary(session_context.thread_id)
 
     final_messages, discarded_messages = compact_context_messages(
         raw_messages,
@@ -35,6 +38,7 @@ def prepare_context(state: dict, llm, session_context: SessionContext) -> Prepar
             current_summary=current_summary,
             discarded_messages=discarded_messages,
         )
+        save_thread_summary(session_context.thread_id, updated_summary)
         remove_commands = build_remove_commands(discarded_messages)
 
     memory_blocks = load_injected_memory_blocks(session_mode=session_context.session_mode)

@@ -116,3 +116,7 @@ Useful commands:
 - `myopenclaw config`
 - `myopenclaw run`
 - `myopenclaw monitor`
+- `myopenclaw memory show`
+- `myopenclaw memory today`
+- `myopenclaw memory recent --days 3`
+- `myopenclaw memory summary --thread local_main`
