@@ -1,9 +1,12 @@
 from ..config import (
     AGENTS_MD_PATH,
     DAILY_MEMORY_DIR,
+    DEFAULT_DAILY_MEMORY_DAYS,
     HEARTBEAT_MD_PATH,
+    INCLUDE_LEGACY_PROFILE,
     LEGACY_USER_PROFILE_PATH,
     MEMORY_MD_PATH,
+    PROJECT_MD_PATH,
     SOUL_MD_PATH,
     USER_MD_PATH,
 )
@@ -11,7 +14,10 @@ from .files import load_memory_file, load_recent_daily_memory
 from .models import LoadedMemoryBlock, MemoryFileSpec
 
 
-def build_memory_specs(session_mode: str = "main") -> list[MemoryFileSpec]:
+def build_memory_specs(
+    session_mode: str = "main",
+    include_legacy_profile: bool = INCLUDE_LEGACY_PROFILE,
+) -> list[MemoryFileSpec]:
     session_mode = session_mode or "main"
     if session_mode == "heartbeat":
         return [
@@ -19,35 +25,45 @@ def build_memory_specs(session_mode: str = "main") -> list[MemoryFileSpec]:
             MemoryFileSpec("HEARTBEAT.md", HEARTBEAT_MD_PATH, load_in_modes={"heartbeat"}, description="Heartbeat behavior"),
         ]
     if session_mode == "main":
-        return [
+        specs = [
             MemoryFileSpec("AGENTS.md", AGENTS_MD_PATH, load_in_modes={"main"}, description="Core runtime rules"),
+            MemoryFileSpec("PROJECT.md", PROJECT_MD_PATH, load_in_modes={"main"}, description="Project context and commands"),
             MemoryFileSpec("SOUL.md", SOUL_MD_PATH, load_in_modes={"main"}, description="Assistant style guidance"),
             MemoryFileSpec("USER.md", USER_MD_PATH, load_in_modes={"main"}, description="User-facing memory"),
             MemoryFileSpec("MEMORY.md", MEMORY_MD_PATH, load_in_modes={"main"}, description="Durable memory"),
-            MemoryFileSpec(
-                "legacy_user_profile.md",
-                LEGACY_USER_PROFILE_PATH,
-                load_in_modes={"main"},
-                description="Legacy CyberClaw profile compatibility",
-            ),
         ]
+        if include_legacy_profile:
+            specs.append(
+                MemoryFileSpec(
+                    "legacy_user_profile.md",
+                    LEGACY_USER_PROFILE_PATH,
+                    load_in_modes={"main"},
+                    description="Legacy CyberClaw profile compatibility",
+                )
+            )
+        return specs
     return [
         MemoryFileSpec("AGENTS.md", AGENTS_MD_PATH, description="Core runtime rules"),
+        MemoryFileSpec("PROJECT.md", PROJECT_MD_PATH, description="Project context and commands"),
         MemoryFileSpec("SOUL.md", SOUL_MD_PATH, description="Assistant style guidance"),
     ]
 
 
 def load_injected_memory_blocks(
     session_mode: str = "main",
-    daily_memory_days: int = 2,
+    daily_memory_days: int = DEFAULT_DAILY_MEMORY_DAYS,
+    include_legacy_profile: bool = INCLUDE_LEGACY_PROFILE,
 ) -> list[LoadedMemoryBlock]:
     blocks: list[LoadedMemoryBlock] = []
-    for spec in build_memory_specs(session_mode=session_mode):
+    for spec in build_memory_specs(
+        session_mode=session_mode,
+        include_legacy_profile=include_legacy_profile,
+    ):
         block = load_memory_file(spec)
         if block is not None:
             blocks.append(block)
 
-    if session_mode == "main":
+    if session_mode == "main" and daily_memory_days > 0:
         blocks.extend(
             load_recent_daily_memory(
                 DAILY_MEMORY_DIR,

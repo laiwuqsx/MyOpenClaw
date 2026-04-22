@@ -19,6 +19,8 @@ if PROJECT_ROOT not in sys.path:
 os.chdir(PROJECT_ROOT)
 
 app = typer.Typer(help="MYCLAW - Transparent local agent runtime")
+memory_app = typer.Typer(help="Inspect local memory files")
+app.add_typer(memory_app, name="memory")
 console = Console()
 
 prompt_style = questionary.Style(
@@ -155,6 +157,88 @@ def run_monitor() -> None:
     import entry.monitor as monitor_module
 
     monitor_module.main()
+
+
+def _read_text(path: str) -> str:
+    if not os.path.exists(path):
+        return ""
+    with open(path, "r", encoding="utf-8", errors="ignore") as fh:
+        return fh.read().strip()
+
+
+@memory_app.command("show")
+def show_memory() -> None:
+    from myopenclaw.core.config import AGENTS_MD_PATH, MEMORY_MD_PATH, PROJECT_MD_PATH, SOUL_MD_PATH, USER_MD_PATH
+
+    paths = [
+        ("AGENTS.md", AGENTS_MD_PATH),
+        ("PROJECT.md", PROJECT_MD_PATH),
+        ("SOUL.md", SOUL_MD_PATH),
+        ("USER.md", USER_MD_PATH),
+        ("MEMORY.md", MEMORY_MD_PATH),
+    ]
+    for name, path in paths:
+        content = _read_text(path)
+        console.print(
+            Panel(
+                content or "(empty or missing)",
+                title=name,
+                border_style="cyan" if content else "dim",
+            )
+        )
+
+
+@memory_app.command("today")
+def show_today_memory() -> None:
+    from datetime import datetime
+
+    from myopenclaw.core.config import DAILY_MEMORY_DIR
+
+    today = datetime.now().strftime("%Y-%m-%d")
+    path = os.path.join(DAILY_MEMORY_DIR, f"{today}.md")
+    content = _read_text(path)
+    console.print(
+        Panel(
+            content or f"No daily memory for {today}.",
+            title=f"Daily Memory: {today}",
+            border_style="cyan" if content else "dim",
+        )
+    )
+
+
+@memory_app.command("recent")
+def show_recent_memory(days: int = typer.Option(3, "--days", "-d", min=1, help="Number of recent daily files to show.")) -> None:
+    from myopenclaw.core.config import DAILY_MEMORY_DIR
+    from myopenclaw.core.memory.files import list_recent_daily_memory_files
+
+    paths = list_recent_daily_memory_files(DAILY_MEMORY_DIR, days=days)
+    if not paths:
+        console.print(Panel("No recent daily memory files found.", title="Daily Memory", border_style="dim"))
+        return
+
+    for path in paths:
+        content = _read_text(path)
+        console.print(
+            Panel(
+                content or "(empty)",
+                title=os.path.basename(path),
+                border_style="cyan",
+            )
+        )
+
+
+@memory_app.command("summary")
+def show_summary(thread_id: str = typer.Option("local_main", "--thread", "-t", help="Thread id to inspect.")) -> None:
+    from myopenclaw.core.memory.summary import get_thread_summary_path, load_thread_summary
+
+    content = load_thread_summary(thread_id)
+    console.print(
+        Panel(
+            content or f"No summary found at {get_thread_summary_path(thread_id)}.",
+            title=f"Summary: {thread_id}",
+            border_style="cyan" if content else "dim",
+        )
+    )
 
 
 def main() -> None:

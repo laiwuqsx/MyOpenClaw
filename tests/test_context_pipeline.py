@@ -31,9 +31,9 @@ class TestContextPipeline(unittest.TestCase):
             model_name="gpt-4o-mini",
         )
 
-        with patch(
-            "myopenclaw.core.context_pipeline.load_injected_memory_blocks",
-            return_value=[],
+        with patch("myopenclaw.core.context_pipeline.load_injected_memory_blocks", return_value=[]), patch(
+            "myopenclaw.core.context_pipeline.load_thread_summary",
+            return_value="",
         ):
             prepared = prepare_context(state=state, llm=FakeLLM(), session_context=session_context)
 
@@ -57,15 +57,66 @@ class TestContextPipeline(unittest.TestCase):
             model_name="gpt-4o-mini",
         )
 
-        with patch(
-            "myopenclaw.core.context_pipeline.load_injected_memory_blocks",
-            return_value=[],
-        ):
+        with patch("myopenclaw.core.context_pipeline.load_injected_memory_blocks", return_value=[]), patch(
+            "myopenclaw.core.context_pipeline.load_thread_summary",
+            return_value="",
+        ), patch("myopenclaw.core.context_pipeline.save_thread_summary") as mock_save:
             prepared = prepare_context(state=state, llm=FakeLLM(), session_context=session_context)
 
         self.assertEqual(prepared.updated_summary, "updated summary")
+        mock_save.assert_called_once_with("t1", "updated summary")
         self.assertEqual(len([m for m in prepared.messages_for_llm if isinstance(m, SystemMessage)]), 1)
         self.assertLess(len(prepared.messages_for_llm), len(messages))
+
+    def test_prepare_context_does_not_load_summary_when_state_is_empty(self):
+        state = {
+            "messages": [
+                HumanMessage(content="continue"),
+            ],
+            "summary": "",
+        }
+        session_context = SessionContext(
+            session_id="s1",
+            session_mode="main",
+            thread_id="t1",
+            workspace_dir="/tmp/workspace",
+            provider_name="openai",
+            model_name="gpt-4o-mini",
+        )
+
+        with patch("myopenclaw.core.context_pipeline.load_injected_memory_blocks", return_value=[]), patch(
+            "myopenclaw.core.context_pipeline.load_thread_summary",
+            return_value="",
+        ):
+            prepared = prepare_context(state=state, llm=FakeLLM(), session_context=session_context)
+
+        self.assertEqual(prepared.updated_summary, "")
+        self.assertNotIn("Working Summary", prepared.messages_for_llm[0].content)
+
+    def test_prepare_context_loads_thread_summary_when_state_is_empty(self):
+        state = {
+            "messages": [
+                HumanMessage(content="continue"),
+            ],
+            "summary": "",
+        }
+        session_context = SessionContext(
+            session_id="s1",
+            session_mode="main",
+            thread_id="t1",
+            workspace_dir="/tmp/workspace",
+            provider_name="openai",
+            model_name="gpt-4o-mini",
+        )
+
+        with patch("myopenclaw.core.context_pipeline.load_injected_memory_blocks", return_value=[]), patch(
+            "myopenclaw.core.context_pipeline.load_thread_summary",
+            return_value="loaded summary",
+        ):
+            prepared = prepare_context(state=state, llm=FakeLLM(), session_context=session_context)
+
+        self.assertEqual(prepared.updated_summary, "loaded summary")
+        self.assertIn("loaded summary", prepared.messages_for_llm[0].content)
 
 
 if __name__ == "__main__":

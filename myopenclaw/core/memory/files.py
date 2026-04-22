@@ -1,6 +1,6 @@
 import os
 import re
-from datetime import datetime
+from datetime import date, datetime
 
 from .models import LoadedMemoryBlock, MemoryFileSpec
 
@@ -24,6 +24,7 @@ def list_recent_daily_memory_files(memory_dir: str, days: int = 2) -> list[str]:
     if not os.path.isdir(memory_dir):
         return []
 
+    today = date.today()
     dated_files: list[tuple[datetime, str]] = []
     for name in os.listdir(memory_dir):
         if not re.fullmatch(r"\d{4}-\d{2}-\d{2}\.md", name):
@@ -31,6 +32,8 @@ def list_recent_daily_memory_files(memory_dir: str, days: int = 2) -> list[str]:
         try:
             parsed = datetime.strptime(name[:-3], "%Y-%m-%d")
         except ValueError:
+            continue
+        if parsed.date() > today:
             continue
         dated_files.append((parsed, os.path.join(memory_dir, name)))
 
