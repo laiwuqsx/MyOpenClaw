@@ -63,13 +63,19 @@ This keeps extensions flexible while preserving interpretability.
 
 ### Live Monitoring and Audit Logs
 
-Agent activity can be written to structured logs and rendered in a live monitor view.
+Agent activity is written to structured JSONL audit logs and can be rendered in a live terminal monitor view.
 
 This is useful for:
 
 - debugging tool usage
 - reviewing model decisions
 - understanding runtime behavior over time
+
+The monitor can show:
+
+- recent runtime events across threads
+- event and thread frequency summaries
+- tool, shell, and assistant activity details
 
 ### Background Task Handling
 
@@ -116,6 +122,10 @@ Useful commands:
 - `myopenclaw config`
 - `myopenclaw run`
 - `myopenclaw monitor`
+- `myopenclaw monitor --once`
+- `myopenclaw monitor --thread local_main --event tool_call`
+- `myopenclaw monitor --view thread --thread local_main`
+- `myopenclaw monitor --view replay --thread local_main --once`
 - `myopenclaw project current`
 - `myopenclaw project init`
 - `myopenclaw memory show`

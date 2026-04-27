@@ -93,7 +93,7 @@ Current use:
 
 - `config` writes local model configuration into `.env`
 - `run` starts the interactive runtime
-- `monitor` is reserved for later observability work
+- `monitor` tails audit logs in a live terminal dashboard
 
 #### `entry/main.py`
 
@@ -469,7 +469,6 @@ The following are still future work:
 
 - full workspace sandbox tools
 - dynamic skill loading
-- full monitor UI
 - heartbeat scheduled tasks
 - richer built-in tool set
 - stronger runtime integration tests

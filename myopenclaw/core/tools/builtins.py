@@ -6,6 +6,7 @@ from .base import myopenclaw_tool
 from .sandbox_tools import (
     execute_office_shell,
     list_office_files,
+    patch_office_file,
     read_office_file,
     write_office_file,
 )
@@ -124,5 +125,6 @@ BUILTIN_TOOLS = [
     list_office_files,
     read_office_file,
     write_office_file,
+    patch_office_file,
     execute_office_shell,
 ]

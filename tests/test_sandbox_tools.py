@@ -7,7 +7,9 @@ from myopenclaw.core.config import OFFICE_DIR
 from myopenclaw.core.tools.sandbox_tools import (
     _get_safe_path,
     execute_office_shell,
+    evaluate_shell_policy,
     list_office_files,
+    patch_office_file,
     read_office_file,
     write_office_file,
 )
@@ -45,11 +47,37 @@ class TestSandboxTools(unittest.TestCase):
             "ls ~",
             "python -c 'print(1)'",
             "node -e 'console.log(1)'",
+            "rm file.txt",
+            "ls . && pwd",
         ]
         for command in dangerous_commands:
             with self.subTest(command=command):
                 result = execute_office_shell.invoke({"command": command})
                 self.assertIn("Permission denied", result)
+
+    def test_shell_policy_allows_safe_read_commands(self):
+        decision = evaluate_shell_policy("ls notes")
+
+        self.assertTrue(decision.allowed)
+        self.assertEqual(decision.risk, "low")
+        self.assertEqual(decision.argv, ["ls", "notes"])
+
+    def test_shell_policy_blocks_control_operators(self):
+        decision = evaluate_shell_policy("ls notes && pwd")
+
+        self.assertFalse(decision.allowed)
+        self.assertIn("control operators", decision.reason)
+
+    def test_execute_office_shell_runs_without_shell_interpolation(self):
+        with tempfile.TemporaryDirectory() as tmpdir:
+            with patch("myopenclaw.core.tools.sandbox_tools.OFFICE_DIR", tmpdir):
+                with open(os.path.join(tmpdir, "a.txt"), "w", encoding="utf-8") as fh:
+                    fh.write("hello")
+
+                result = execute_office_shell.invoke({"command": "ls"})
+
+        self.assertIn("Exit Code: 0", result)
+        self.assertIn("a.txt", result)
 
     def test_write_and_read_inside_temp_office(self):
         with tempfile.TemporaryDirectory() as tmpdir:
@@ -63,6 +91,46 @@ class TestSandboxTools(unittest.TestCase):
                 self.assertEqual(read_result, "hello office")
 
                 self.assertTrue(os.path.exists(os.path.join(tmpdir, "notes", "test.txt")))
+
+    def test_patch_office_file_replaces_exact_text(self):
+        with tempfile.TemporaryDirectory() as tmpdir:
+            with patch("myopenclaw.core.tools.sandbox_tools.OFFICE_DIR", tmpdir):
+                path = os.path.join(tmpdir, "notes.txt")
+                with open(path, "w", encoding="utf-8") as fh:
+                    fh.write("hello office")
+
+                result = patch_office_file.invoke(
+                    {
+                        "filepath": "notes.txt",
+                        "old_text": "office",
+                        "new_text": "workspace",
+                        "expected_replacements": 1,
+                    }
+                )
+                with open(path, "r", encoding="utf-8") as fh:
+                    content = fh.read()
+
+        self.assertIn("Patched office file", result)
+        self.assertEqual(content, "hello workspace")
+
+    def test_patch_office_file_requires_expected_match_count(self):
+        with tempfile.TemporaryDirectory() as tmpdir:
+            with patch("myopenclaw.core.tools.sandbox_tools.OFFICE_DIR", tmpdir):
+                path = os.path.join(tmpdir, "notes.txt")
+                with open(path, "w", encoding="utf-8") as fh:
+                    fh.write("same same")
+
+                result = patch_office_file.invoke(
+                    {
+                        "filepath": "notes.txt",
+                        "old_text": "same",
+                        "new_text": "changed",
+                        "expected_replacements": 1,
+                    }
+                )
+
+        self.assertIn("Patch not applied", result)
+        self.assertIn("found 2", result)
 
 
 if __name__ == "__main__":

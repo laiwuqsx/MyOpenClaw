@@ -156,10 +156,62 @@ def run_agent() -> None:
 
 
 @app.command("monitor")
-def run_monitor() -> None:
+def run_monitor(
+    once: bool = typer.Option(
+        False,
+        "--once",
+        help="Render one snapshot and exit instead of live monitoring.",
+    ),
+    thread: str | None = typer.Option(
+        None,
+        "--thread",
+        help="Only show events for a specific thread id.",
+    ),
+    event: str | None = typer.Option(
+        None,
+        "--event",
+        help="Only show events of a specific type.",
+    ),
+    limit: int = typer.Option(
+        200,
+        "--limit",
+        min=1,
+        help="Maximum number of recent events to keep in the visible window.",
+    ),
+    interval: float = typer.Option(
+        1.0,
+        "--interval",
+        min=0.1,
+        help="Polling interval in seconds for live mode.",
+    ),
+    fullscreen: bool = typer.Option(
+        False,
+        "--fullscreen",
+        help="Use alternate-screen fullscreen rendering.",
+    ),
+    view: str = typer.Option(
+        "dashboard",
+        "--view",
+        help="Render mode: `dashboard`, `thread`, or `replay`.",
+    ),
+) -> None:
     import entry.monitor as monitor_module
 
-    monitor_module.main()
+    normalized_view = (view or "dashboard").strip().lower()
+    if normalized_view not in {"dashboard", "thread", "replay"}:
+        raise typer.BadParameter("`--view` must be `dashboard`, `thread`, or `replay`.")
+    if normalized_view in {"thread", "replay"} and not thread:
+        raise typer.BadParameter(f"`--view {normalized_view}` requires `--thread <thread_id>`.")
+
+    monitor_module.main(
+        refresh_interval=interval,
+        limit=limit,
+        once=once,
+        fullscreen=fullscreen,
+        thread_id=thread,
+        event_type=event,
+        view_mode=normalized_view,
+    )
 
 
 def _read_text(path: str) -> str:
