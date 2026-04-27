@@ -12,13 +12,13 @@ from .sandbox_tools import (
 )
 
 
-@myopenclaw_tool
+@myopenclaw_tool(tags=("builtin", "time"))
 def get_current_time() -> str:
     """Return the current local system time."""
     return datetime.now().strftime("%Y-%m-%d %H:%M:%S")
 
 
-@myopenclaw_tool
+@myopenclaw_tool(tags=("builtin", "math"))
 def calculator(expression: str) -> str:
     """Evaluate a basic math expression in a restricted environment."""
     try:
@@ -28,7 +28,7 @@ def calculator(expression: str) -> str:
         return f"Calculation failed: {exc}"
 
 
-@myopenclaw_tool
+@myopenclaw_tool(tags=("memory", "read"))
 def read_user_profile() -> str:
     """Read global user memory, with legacy profile compatibility."""
     sections = []
@@ -49,7 +49,13 @@ def read_user_profile() -> str:
     return "\n\n".join(sections)
 
 
-@myopenclaw_tool
+@myopenclaw_tool(
+    risk="medium",
+    permission_mode="memory_write",
+    read_only=False,
+    write_scope="global_user_memory",
+    tags=("memory", "write"),
+)
 def save_user_profile(new_content: str) -> str:
     """Overwrite global user memory."""
     os.makedirs(os.path.dirname(USER_MD_PATH), exist_ok=True)
@@ -59,7 +65,7 @@ def save_user_profile(new_content: str) -> str:
     return "Global user profile saved to USER.md."
 
 
-@myopenclaw_tool
+@myopenclaw_tool(tags=("memory", "read"))
 def read_project_memory() -> str:
     """Read the current project's auto-memory index."""
     if not os.path.exists(MEMORY_MD_PATH):
@@ -69,7 +75,13 @@ def read_project_memory() -> str:
     return content or "Project auto-memory is empty."
 
 
-@myopenclaw_tool
+@myopenclaw_tool(
+    risk="medium",
+    permission_mode="memory_append",
+    read_only=False,
+    write_scope="project_memory",
+    tags=("memory", "write"),
+)
 def append_project_memory(note: str) -> str:
     """Append a durable note to the current project's auto-memory index."""
     os.makedirs(os.path.dirname(MEMORY_MD_PATH), exist_ok=True)
@@ -79,7 +91,13 @@ def append_project_memory(note: str) -> str:
     return "Project memory appended to MEMORY.md."
 
 
-@myopenclaw_tool
+@myopenclaw_tool(
+    risk="medium",
+    permission_mode="memory_append",
+    read_only=False,
+    write_scope="project_daily_memory",
+    tags=("memory", "write"),
+)
 def append_daily_memory(note: str, date: str | None = None) -> str:
     """Append a durable note to the daily memory markdown file."""
     target_date = date or datetime.now().strftime("%Y-%m-%d")
@@ -96,7 +114,7 @@ def append_daily_memory(note: str, date: str | None = None) -> str:
     return f"Daily memory appended to {target_date}.md"
 
 
-@myopenclaw_tool
+@myopenclaw_tool(tags=("memory", "read"))
 def read_daily_memory(date: str) -> str:
     """Read a daily memory file by date when the user explicitly asks for it."""
     try:

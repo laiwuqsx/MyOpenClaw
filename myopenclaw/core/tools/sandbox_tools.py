@@ -20,6 +20,9 @@ SHELL_TIMEOUT_SECONDS = 60
 @dataclass(frozen=True)
 class ShellPolicyDecision:
     allowed: bool
+    permission_mode: str
+    command_family: str
+    approval_required: bool
     risk: str
     reason: str
     argv: list[str]
@@ -91,29 +94,89 @@ def evaluate_shell_policy(command: str) -> ShellPolicyDecision:
     try:
         argv = shlex.split(command)
     except ValueError as exc:
-        return ShellPolicyDecision(False, "blocked", f"Could not parse command: {exc}", [])
+        return ShellPolicyDecision(
+            False,
+            "structured_shell_policy",
+            "parse_error",
+            False,
+            "blocked",
+            f"Could not parse command: {exc}",
+            [],
+        )
 
     if not argv:
-        return ShellPolicyDecision(False, "blocked", "Empty command.", [])
+        return ShellPolicyDecision(
+            False,
+            "structured_shell_policy",
+            "empty",
+            False,
+            "blocked",
+            "Empty command.",
+            [],
+        )
 
     if any(token in SHELL_CONTROL_TOKENS for token in argv):
-        return ShellPolicyDecision(False, "blocked", "Shell control operators are not allowed.", argv)
+        return ShellPolicyDecision(
+            False,
+            "structured_shell_policy",
+            "shell_control",
+            False,
+            "blocked",
+            "Shell control operators are not allowed.",
+            argv,
+        )
 
     executable = os.path.basename(argv[0])
     if executable in DENIED_SHELL_COMMANDS:
-        return ShellPolicyDecision(False, "blocked", f"Command is denied by policy: {executable}", argv)
+        return ShellPolicyDecision(
+            False,
+            "structured_shell_policy",
+            executable,
+            False,
+            "blocked",
+            f"Command is denied by policy: {executable}",
+            argv,
+        )
 
     if executable not in SAFE_SHELL_COMMANDS:
-        return ShellPolicyDecision(False, "blocked", f"Command is not in the safe allowlist: {executable}", argv)
+        return ShellPolicyDecision(
+            False,
+            "structured_shell_policy",
+            executable,
+            False,
+            "blocked",
+            f"Command is not in the safe allowlist: {executable}",
+            argv,
+        )
 
     for token in argv[1:]:
         if _token_looks_like_path_escape(token):
-            return ShellPolicyDecision(False, "blocked", f"Argument escapes the office workspace: {token}", argv)
+            return ShellPolicyDecision(
+                False,
+                "structured_shell_policy",
+                executable,
+                False,
+                "blocked",
+                f"Argument escapes the office workspace: {token}",
+                argv,
+            )
 
-    return ShellPolicyDecision(True, "low", "Allowed safe read-only command.", argv)
+    return ShellPolicyDecision(
+        True,
+        "structured_shell_policy",
+        executable,
+        False,
+        "low",
+        "Allowed safe read-only command.",
+        argv,
+    )
 
 
-@myopenclaw_tool
+@myopenclaw_tool(
+    permission_mode="workspace_read",
+    write_scope="office",
+    tags=("workspace", "read"),
+)
 def list_office_files(sub_dir: str = "") -> str:
     """List files and folders inside the office workspace."""
     try:
@@ -137,7 +200,11 @@ def list_office_files(sub_dir: str = "") -> str:
         return str(exc)
 
 
-@myopenclaw_tool
+@myopenclaw_tool(
+    permission_mode="workspace_read",
+    write_scope="office",
+    tags=("workspace", "read"),
+)
 def read_office_file(filepath: str) -> str:
     """Read a text file relative to the office workspace."""
     try:
@@ -157,7 +224,13 @@ def read_office_file(filepath: str) -> str:
         return str(exc)
 
 
-@myopenclaw_tool
+@myopenclaw_tool(
+    risk="medium",
+    permission_mode="workspace_write",
+    read_only=False,
+    write_scope="office",
+    tags=("workspace", "write"),
+)
 def write_office_file(filepath: str, content: str, mode: str = "w") -> str:
     """Write or append text to a file relative to the office workspace."""
     try:
@@ -180,7 +253,13 @@ def write_office_file(filepath: str, content: str, mode: str = "w") -> str:
         return str(exc)
 
 
-@myopenclaw_tool
+@myopenclaw_tool(
+    risk="medium",
+    permission_mode="workspace_patch",
+    read_only=False,
+    write_scope="office",
+    tags=("workspace", "write", "patch"),
+)
 def patch_office_file(filepath: str, old_text: str, new_text: str, expected_replacements: int = 1) -> str:
     """Replace exact text inside an office workspace file."""
     try:
@@ -214,7 +293,12 @@ def patch_office_file(filepath: str, old_text: str, new_text: str, expected_repl
         return str(exc)
 
 
-@myopenclaw_tool
+@myopenclaw_tool(
+    risk="medium",
+    permission_mode="structured_shell_policy",
+    write_scope="office",
+    tags=("workspace", "shell"),
+)
 def execute_office_shell(command: str) -> str:
     """Run a non-interactive shell command with OFFICE_DIR as the working directory."""
     started = time.monotonic()
@@ -224,9 +308,18 @@ def execute_office_shell(command: str) -> str:
             audit_logger.log_event(
                 thread_id="tool",
                 event="shell_blocked",
-                command=command,
-                reason=decision.reason,
+                event_family="tool",
+                status="blocked",
+                tool="execute_office_shell",
+                permission=decision.permission_mode,
+                approval_required=decision.approval_required,
                 risk=decision.risk,
+                payload={
+                    "command": command,
+                    "argv": decision.argv,
+                    "command_family": decision.command_family,
+                    "reason": decision.reason,
+                },
             )
             return f"Permission denied: {decision.reason}"
 
@@ -246,13 +339,22 @@ def execute_office_shell(command: str) -> str:
         audit_logger.log_event(
             thread_id="tool",
             event="shell_executed",
-            command=command,
-            argv=decision.argv,
+            event_family="tool",
+            status="ok" if result.returncode == 0 else "error",
+            tool="execute_office_shell",
+            permission=decision.permission_mode,
+            approval_required=decision.approval_required,
             risk=decision.risk,
-            exit_code=result.returncode,
             duration_ms=duration_ms,
-            stdout_chars=len(stdout),
-            stderr_chars=len(stderr),
+            error=stderr[:MAX_STDIO_CHARS] if result.returncode != 0 and stderr else None,
+            payload={
+                "command": command,
+                "argv": decision.argv,
+                "command_family": decision.command_family,
+                "exit_code": result.returncode,
+                "stdout_chars": len(stdout),
+                "stderr_chars": len(stderr),
+            },
         )
 
         rendered = [
@@ -284,9 +386,19 @@ def execute_office_shell(command: str) -> str:
         audit_logger.log_event(
             thread_id="tool",
             event="shell_timeout",
-            command=command,
-            argv=decision.argv,
+            event_family="tool",
+            status="timeout",
+            tool="execute_office_shell",
+            permission=decision.permission_mode,
+            approval_required=decision.approval_required,
+            risk=decision.risk,
             duration_ms=duration_ms,
+            error=f"Command timed out after {SHELL_TIMEOUT_SECONDS} seconds.",
+            payload={
+                "command": command,
+                "argv": decision.argv,
+                "command_family": decision.command_family,
+            },
         )
         return f"Command timed out after {SHELL_TIMEOUT_SECONDS} seconds."
     except Exception as exc:
@@ -294,9 +406,18 @@ def execute_office_shell(command: str) -> str:
         audit_logger.log_event(
             thread_id="tool",
             event="shell_error",
-            command=command,
-            argv=decision.argv,
+            event_family="tool",
+            status="error",
+            tool="execute_office_shell",
+            permission=decision.permission_mode,
+            approval_required=decision.approval_required,
+            risk=decision.risk,
             duration_ms=duration_ms,
             error=str(exc),
+            payload={
+                "command": command,
+                "argv": decision.argv,
+                "command_family": decision.command_family,
+            },
         )
         return f"Shell execution failed: {exc}"

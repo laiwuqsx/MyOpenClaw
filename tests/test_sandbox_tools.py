@@ -4,6 +4,7 @@ import unittest
 from unittest.mock import patch
 
 from myopenclaw.core.config import OFFICE_DIR
+from myopenclaw.core.tools.base import get_tool_contract
 from myopenclaw.core.tools.sandbox_tools import (
     _get_safe_path,
     execute_office_shell,
@@ -59,6 +60,8 @@ class TestSandboxTools(unittest.TestCase):
         decision = evaluate_shell_policy("ls notes")
 
         self.assertTrue(decision.allowed)
+        self.assertEqual(decision.permission_mode, "structured_shell_policy")
+        self.assertEqual(decision.command_family, "ls")
         self.assertEqual(decision.risk, "low")
         self.assertEqual(decision.argv, ["ls", "notes"])
 
@@ -131,6 +134,15 @@ class TestSandboxTools(unittest.TestCase):
 
         self.assertIn("Patch not applied", result)
         self.assertIn("found 2", result)
+
+    def test_workspace_tools_expose_explicit_contracts(self):
+        shell_contract = get_tool_contract(execute_office_shell)
+        patch_contract = get_tool_contract(patch_office_file)
+
+        self.assertEqual(shell_contract["permission_mode"], "structured_shell_policy")
+        self.assertEqual(shell_contract["write_scope"], "office")
+        self.assertEqual(patch_contract["permission_mode"], "workspace_patch")
+        self.assertFalse(patch_contract["read_only"])
 
 
 if __name__ == "__main__":

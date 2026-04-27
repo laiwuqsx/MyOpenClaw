@@ -18,6 +18,11 @@ class AuditEvent:
     ts: str
     thread_id: str
     event: str
+    event_family: str = ""
+    status: str = ""
+    tool: str = ""
+    duration_ms: int | None = None
+    error: str | None = None
     payload: dict[str, Any] = field(default_factory=dict)
     source_file: str = ""
 
@@ -106,16 +111,40 @@ def load_audit_events(
                 if event_type and current_event_type != event_type:
                     continue
 
-                payload = {
-                    key: value
-                    for key, value in raw.items()
-                    if key not in {"ts", "thread_id", "event"}
-                }
+                payload = raw.get("payload", {})
+                if not isinstance(payload, dict):
+                    payload = {}
+                payload = dict(payload)
+                for key in {
+                    "schema_version",
+                    "session_id",
+                    "session_mode",
+                    "provider",
+                    "model",
+                    "tool",
+                    "duration_ms",
+                    "error",
+                    "risk",
+                    "permission",
+                    "approval_required",
+                    "contract",
+                    "status",
+                }:
+                    if key in raw and key not in payload:
+                        payload[key] = raw[key]
+                for key, value in raw.items():
+                    if key not in {"ts", "thread_id", "event", "payload", "event_family"} and key not in payload:
+                        payload[key] = value
                 parsed_events.append(
                     AuditEvent(
                         ts=str(raw.get("ts", "")),
                         thread_id=current_thread_id,
                         event=current_event_type,
+                        event_family=str(raw.get("event_family", "")),
+                        status=str(raw.get("status", "")),
+                        tool=str(raw.get("tool", "")),
+                        duration_ms=raw.get("duration_ms"),
+                        error=raw.get("error"),
                         payload=payload,
                         source_file=name,
                     )
@@ -167,6 +196,8 @@ def _event_style(event: AuditEvent) -> str:
 def _is_anomaly_event(event: AuditEvent) -> bool:
     if event.event in ANOMALY_EVENTS:
         return True
+    if event.status == "error":
+        return True
     if event.event == "shell_executed" and int(event.payload.get("exit_code", 0) or 0) != 0:
         return True
     return False
@@ -182,9 +213,11 @@ def _anomaly_label(event: AuditEvent) -> str:
 
 def summarize_event(event: AuditEvent) -> str:
     if event.event == "tool_call":
-        return f"tool={event.payload.get('tool', 'unknown')} args={_format_payload_value(event.payload.get('args', {}))}"
+        tool_name = event.tool or event.payload.get("tool", "unknown")
+        return f"tool={tool_name} args={_format_payload_value(event.payload.get('args', {}))}"
     if event.event == "tool_result":
-        return f"tool={event.payload.get('tool', 'unknown')} result={str(event.payload.get('result_summary', ''))[:80]}"
+        tool_name = event.tool or event.payload.get("tool", "unknown")
+        return f"tool={tool_name} result={str(event.payload.get('result_summary', ''))[:80]}"
     if event.event == "llm_input":
         return f"messages={event.payload.get('message_count', '?')}"
     if event.event == "ai_message":

@@ -145,12 +145,22 @@ class TestMonitor(unittest.TestCase):
             self._write_jsonl(
                 os.path.join(tmpdir, "local_main.jsonl"),
                 [
-                    {"ts": "2026-04-25T10:00:00Z", "thread_id": "local_main", "event": "tool_call", "tool": "calculator", "args": {"expression": "1+1"}},
+                    {
+                        "ts": "2026-04-25T10:00:00Z",
+                        "schema_version": "myopenclaw.audit.v1",
+                        "thread_id": "local_main",
+                        "event": "tool_call",
+                        "event_family": "tool",
+                        "status": "requested",
+                        "tool": "calculator",
+                        "payload": {"args": {"expression": "1+1"}},
+                    },
                 ],
             )
             snapshot = load_audit_events(log_dir=tmpdir, limit=10)
 
         self.assertIn("tool=calculator", summarize_event(snapshot.events[0]))
+        self.assertEqual(snapshot.events[0].status, "requested")
 
 
 if __name__ == "__main__":

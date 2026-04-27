@@ -6,10 +6,11 @@ from langgraph.graph import END, START, StateGraph
 from langgraph.prebuilt import ToolNode, tools_condition
 
 from .context import AgentState
-from .logger import audit_logger
+from .logger import audit_logger, set_audit_context
 from .provider import get_provider
 from .session_state import build_session_context
 from .skill_loader import load_dynamic_skills
+from .tools.base import get_tool_contract
 from .tools.builtins import BUILTIN_TOOLS
 from .turn_manager import run_agent_turn
 
@@ -21,6 +22,7 @@ def create_runtime(
     checkpointer=None,
 ):
     actual_tools = tools if tools is not None else BUILTIN_TOOLS + load_dynamic_skills()
+    tool_contracts = {tool.name: get_tool_contract(tool) for tool in actual_tools}
     llm = get_provider(provider_name=provider_name, model_name=model_name)
     llm_with_tools = llm.bind_tools(actual_tools)
     tool_node = ToolNode(actual_tools)
@@ -31,12 +33,20 @@ def create_runtime(
             provider_name=provider_name,
             model_name=model_name,
         )
+        set_audit_context(
+            session_id=session_context.session_id,
+            session_mode=session_context.session_mode,
+            thread_id=session_context.thread_id,
+            provider=session_context.provider_name,
+            model=session_context.model_name,
+        )
         result = run_agent_turn(
             state=state,
             llm=llm,
             llm_with_tools=llm_with_tools,
             session_context=session_context,
             audit_logger=audit_logger,
+            tool_contracts=tool_contracts,
         )
         return result.state_updates
 
