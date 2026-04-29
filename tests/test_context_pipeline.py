@@ -21,6 +21,8 @@ class TestContextPipeline(unittest.TestCase):
                 AIMessage(content="hi"),
             ],
             "summary": "working summary",
+            "plan_state": {"items": [{"step": "Inspect repo", "status": "in_progress"}]},
+            "approval_state": {"status": "pending", "tool_name": "write_office_file"},
         }
         session_context = SessionContext(
             session_id="s1",
@@ -40,6 +42,8 @@ class TestContextPipeline(unittest.TestCase):
         self.assertEqual(len([m for m in prepared.messages_for_llm if isinstance(m, SystemMessage)]), 1)
         self.assertEqual(prepared.updated_summary, "working summary")
         self.assertIn("Working Summary", prepared.messages_for_llm[0].content)
+        self.assertIn("Plan State", prepared.messages_for_llm[0].content)
+        self.assertIn("Pending Approval", prepared.messages_for_llm[0].content)
 
     def test_prepare_context_compacts_and_updates_summary(self):
         messages = []

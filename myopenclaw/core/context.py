@@ -8,6 +8,8 @@ class AgentState(TypedDict, total=False):
     messages: Annotated[list[BaseMessage], add_messages]
     summary: str
     summary_state: dict | None
+    plan_state: dict | None
+    approval_state: dict | None
 
 
 def trim_context_messages(

@@ -23,12 +23,43 @@ def build_summary_prompt_section(summary_text: str) -> str:
     return f"[Working Summary]\n{summary_text}"
 
 
-def build_system_prompt(memory_text: str, summary_text: str) -> str:
+def build_plan_prompt_section(plan_text: str) -> str:
+    if not plan_text:
+        return ""
+    return (
+        "[Plan State]\n"
+        f"{plan_text}\n\n"
+        "Treat this as runtime state. Keep it updated with the `update_plan` tool when the task changes."
+    )
+
+
+def build_approval_prompt_section(approval_text: str) -> str:
+    if not approval_text:
+        return ""
+    return (
+        "[Pending Approval]\n"
+        f"{approval_text}\n\n"
+        "Do not retry the blocked action until the user explicitly approves it."
+    )
+
+
+def build_system_prompt(
+    memory_text: str,
+    summary_text: str,
+    plan_text: str = "",
+    approval_text: str = "",
+) -> str:
     parts = [build_base_system_prompt()]
     memory_section = build_memory_prompt_section(memory_text)
     summary_section = build_summary_prompt_section(summary_text)
+    plan_section = build_plan_prompt_section(plan_text)
+    approval_section = build_approval_prompt_section(approval_text)
     if memory_section:
         parts.append(memory_section)
     if summary_section:
         parts.append(summary_section)
+    if plan_section:
+        parts.append(plan_section)
+    if approval_section:
+        parts.append(approval_section)
     return "\n\n".join(parts).strip()

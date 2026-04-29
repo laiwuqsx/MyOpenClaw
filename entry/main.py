@@ -8,7 +8,7 @@ from langchain_core.messages import HumanMessage
 from langgraph.checkpoint.sqlite.aio import AsyncSqliteSaver
 from prompt_toolkit import PromptSession, print_formatted_text
 from prompt_toolkit.application import get_app
-from prompt_toolkit.formatted_text import ANSI
+from prompt_toolkit.formatted_text import AnyFormattedText
 from prompt_toolkit.patch_stdout import patch_stdout
 from prompt_toolkit.styles import Style
 from rich.console import Console
@@ -16,9 +16,10 @@ from rich.panel import Panel
 
 from myopenclaw.core.agent import create_agent_app
 from myopenclaw.core.config import DB_PATH
+from myopenclaw.core.control import format_approval_state_for_prompt, format_plan_state_for_prompt
 
 
-console = Console()
+console = Console(no_color=True, force_terminal=False)
 PROJECT_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 ENV_PATH = os.path.join(PROJECT_ROOT, ".env")
 
@@ -37,21 +38,14 @@ def type_line(text: str, delay: float = 0.004) -> None:
 def print_banner(provider: str, model: str) -> None:
     clear_screen()
 
-    cyan = "\033[38;5;51m"
-    green = "\033[38;5;84m"
-    silver = "\033[38;5;250m"
-    white = "\033[37m"
-    bold = "\033[1m"
-    reset = "\033[0m"
-
-    logo = f"""{cyan}{bold}
+    logo = """
 ███╗   ███╗██╗   ██╗ ██████╗ ██████╗ ███████╗███╗   ██╗
 ████╗ ████║╚██╗ ██╔╝██╔═══██╗██╔══██╗██╔════╝████╗  ██║
 ██╔████╔██║ ╚████╔╝ ██║   ██║██████╔╝█████╗  ██╔██╗ ██║
 ██║╚██╔╝██║  ╚██╔╝  ██║   ██║██╔═══╝ ██╔══╝  ██║╚██╗██║
 ██║ ╚═╝ ██║   ██║   ╚██████╔╝██║     ███████╗██║ ╚████║
 ╚═╝     ╚═╝   ╚═╝    ╚═════╝ ╚═╝     ╚══════╝╚═╝  ╚═══╝
-{reset}"""
+""".strip("\n")
 
     quote = random.choice(
         [
@@ -63,19 +57,16 @@ def print_banner(provider: str, model: str) -> None:
     )
 
     print(logo)
-    print(f"{white}{bold} MYCLAW Local Runtime {reset}")
+    print(" MYCLAW Local Runtime")
     print()
-    print(f"{silver}{quote}{reset}")
+    print(quote)
     print()
-    type_line(
-        f"{green}Configured provider:{reset} {provider}    "
-        f"{green}Configured model:{reset} {model}"
-    )
+    print(f"Configured provider: {provider}    Configured model: {model}")
     print()
 
 
 def cprint(text: str = "", end: str = "\n") -> None:
-    print_formatted_text(ANSI(str(text)), end=end)
+    print(str(text), end=end, flush=True)
 
 
 class SpinnerState:
@@ -104,20 +95,16 @@ class SpinnerState:
         self.is_tool_calling = False
         self.tool_msg = ""
 
-    def toolbar(self) -> ANSI:
+    def toolbar(self) -> AnyFormattedText:
         if not self.is_spinning:
-            return ANSI("")
+            return ""
         elapsed = time.time() - self.start_time
         if self.is_tool_calling:
             label = self.tool_msg
         else:
             label = self.words[int(elapsed) % len(self.words)]
         frame = self.frames[int(elapsed * 12) % len(self.frames)]
-        return ANSI(
-            f"  \033[38;5;51m{frame}\033[0m "
-            f"\033[38;5;250m{label}\033[0m "
-            f"\033[38;5;84m[{elapsed:.1f}s]\033[0m"
-        )
+        return f"  {frame} {label} [{elapsed:.1f}s]"
 
 
 async def run_interactive_runtime(provider: str, model: str) -> None:
@@ -129,7 +116,16 @@ async def run_interactive_runtime(provider: str, model: str) -> None:
             model_name=model,
             checkpointer=memory,
         )
-        config = {"configurable": {"thread_id": "local_main"}}
+        approved_tools: set[str] = set()
+        approved_permissions: set[str] = set()
+        config = {
+            "configurable": {
+                "thread_id": "local_main",
+                "approval_policy": "deny_writes",
+                "approved_tools": sorted(approved_tools),
+                "approved_permissions": sorted(approved_permissions),
+            }
+        }
         spinner = SpinnerState()
 
         session = PromptSession(
@@ -138,8 +134,8 @@ async def run_interactive_runtime(provider: str, model: str) -> None:
             erase_when_done=True,
             reserve_space_for_menu=0,
         )
-        prompt_message = ANSI("  \033[38;5;51m❯\033[0m ")
-        placeholder_text = ANSI("\033[3m\033[38;5;242mmessage...\033[0m")
+        prompt_message = "  ❯ "
+        placeholder_text = "message..."
 
         async def redraw_timer() -> None:
             while True:
@@ -159,17 +155,43 @@ async def run_interactive_runtime(provider: str, model: str) -> None:
                         placeholder=placeholder_text,
                     )
                 except (KeyboardInterrupt, EOFError):
-                    cprint("\n  \033[38;5;84mSession interrupted. Exiting.\033[0m")
+                    cprint("\n  Session interrupted. Exiting.")
                     break
 
                 user_input = user_input.strip()
                 if not user_input:
                     continue
                 if user_input.lower() in {"/exit", "/quit"}:
-                    cprint("  \033[38;5;84mMYCLAW shutting down.\033[0m")
+                    cprint("  MYCLAW shutting down.")
                     break
+                if user_input.lower() == "/plan":
+                    snapshot = await app.aget_state(config)
+                    plan_text = format_plan_state_for_prompt((snapshot.values or {}).get("plan_state"))
+                    cprint(f"  {plan_text or 'No active runtime plan.'}\n")
+                    continue
+                if user_input.lower() == "/approvals":
+                    snapshot = await app.aget_state(config)
+                    approval_text = format_approval_state_for_prompt((snapshot.values or {}).get("approval_state"))
+                    cprint(f"  {approval_text or 'No pending approval requests.'}\n")
+                    continue
+                if user_input.lower().startswith("/approve "):
+                    target = user_input[len("/approve ") :].strip()
+                    if not target:
+                        cprint("  Usage: /approve <tool_name|permission_mode>\n")
+                        continue
+                    snapshot = await app.aget_state(config)
+                    pending = (snapshot.values or {}).get("approval_state") or {}
+                    if target == pending.get("tool_name"):
+                        approved_tools.add(target)
+                    else:
+                        approved_permissions.add(target)
+                    config["configurable"]["approved_tools"] = sorted(approved_tools)
+                    config["configurable"]["approved_permissions"] = sorted(approved_permissions)
+                    await app.aupdate_state(config, {"approval_state": {}})
+                    cprint(f"  Approved: {target}\n")
+                    continue
 
-                cprint(f"\033[48;2;38;38;38m\033[38;5;255m  ❯ {user_input}  \033[0m\n")
+                cprint(f"  ❯ {user_input}\n")
                 spinner.start()
                 inputs = {"messages": [HumanMessage(content=user_input)]}
 
@@ -182,7 +204,7 @@ async def run_interactive_runtime(provider: str, model: str) -> None:
                                     for tool_call in last_msg.tool_calls:
                                         spinner.is_tool_calling = True
                                         spinner.tool_msg = f"Using tool: {tool_call['name']}"
-                                        cprint(f"  ● \033[38;5;51mTool Call:\033[0m {tool_call['name']}")
+                                        cprint(f"  ● Tool Call: {tool_call['name']}")
                                         cprint()
                                 elif getattr(last_msg, "content", None):
                                     spinner.stop()
@@ -191,10 +213,9 @@ async def run_interactive_runtime(provider: str, model: str) -> None:
                                         lines = content.splitlines()
                                         first = lines[0]
                                         remainder = lines[1:]
-                                        formatted = f"  \033[38;5;84m❯\033[0m \033[38;5;250m{first}"
+                                        formatted = f"  ❯ {first}"
                                         for line in remainder:
                                             formatted += f"\n    {line}"
-                                        formatted += "\033[0m"
                                         cprint(formatted)
                             else:
                                 spinner.is_tool_calling = False

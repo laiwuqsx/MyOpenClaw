@@ -3,6 +3,7 @@ from dataclasses import dataclass, field
 from langchain_core.messages import SystemMessage
 
 from .compaction import build_remove_commands, compact_context_messages, summarize_discarded_messages
+from .control import format_approval_state_for_prompt, format_plan_state_for_prompt
 from .memory.injection import format_memory_blocks_for_prompt, load_injected_memory_blocks
 from .memory.summary import load_project_summary, normalize_summary_text, save_project_summary
 from .prompt_builder import build_system_prompt
@@ -43,9 +44,13 @@ def prepare_context(state: dict, llm, session_context: SessionContext) -> Prepar
 
     memory_blocks = load_injected_memory_blocks(session_mode=session_context.session_mode)
     memory_blocks_text = format_memory_blocks_for_prompt(memory_blocks)
+    plan_text = format_plan_state_for_prompt(state.get("plan_state"))
+    approval_text = format_approval_state_for_prompt(state.get("approval_state"))
     system_prompt = build_system_prompt(
         memory_text=memory_blocks_text,
         summary_text=updated_summary,
+        plan_text=plan_text,
+        approval_text=approval_text,
     )
 
     non_system_messages = [message for message in final_messages if not isinstance(message, SystemMessage)]

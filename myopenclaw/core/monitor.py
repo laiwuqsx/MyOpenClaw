@@ -38,6 +38,7 @@ class MonitorSnapshot:
 
 
 ANOMALY_EVENTS = {
+    "tool_blocked": "blocked",
     "shell_blocked": "blocked",
     "shell_error": "error",
     "shell_timeout": "timeout",
@@ -215,6 +216,15 @@ def summarize_event(event: AuditEvent) -> str:
     if event.event == "tool_call":
         tool_name = event.tool or event.payload.get("tool", "unknown")
         return f"tool={tool_name} args={_format_payload_value(event.payload.get('args', {}))}"
+    if event.event == "tool_permission":
+        tool_name = event.tool or event.payload.get("tool", "unknown")
+        return (
+            f"tool={tool_name} permission={event.payload.get('permission', '') or event.payload.get('permission_mode', '')} "
+            f"status={event.status or event.payload.get('status', '')}"
+        )
+    if event.event == "tool_blocked":
+        tool_name = event.tool or event.payload.get("tool", "unknown")
+        return f"tool={tool_name} blocked={event.payload.get('reason', event.error or '')}"
     if event.event == "tool_result":
         tool_name = event.tool or event.payload.get("tool", "unknown")
         return f"tool={tool_name} result={str(event.payload.get('result_summary', ''))[:80]}"

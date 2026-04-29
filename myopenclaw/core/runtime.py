@@ -7,6 +7,7 @@ from langgraph.prebuilt import ToolNode, tools_condition
 
 from .context import AgentState
 from .logger import audit_logger, set_audit_context
+from .permissions import set_permission_context, wrap_tool_call_with_permissions
 from .provider import get_provider
 from .session_state import build_session_context
 from .skill_loader import load_dynamic_skills
@@ -25,7 +26,7 @@ def create_runtime(
     tool_contracts = {tool.name: get_tool_contract(tool) for tool in actual_tools}
     llm = get_provider(provider_name=provider_name, model_name=model_name)
     llm_with_tools = llm.bind_tools(actual_tools)
-    tool_node = ToolNode(actual_tools)
+    tool_node = ToolNode(actual_tools, wrap_tool_call=wrap_tool_call_with_permissions)
 
     def agent_node(state: AgentState, config: RunnableConfig) -> dict:
         session_context = build_session_context(
@@ -39,6 +40,12 @@ def create_runtime(
             thread_id=session_context.thread_id,
             provider=session_context.provider_name,
             model=session_context.model_name,
+        )
+        configurable = (config or {}).get("configurable", {})
+        set_permission_context(
+            approval_policy=configurable.get("approval_policy", "auto"),
+            approved_tools=configurable.get("approved_tools") or [],
+            approved_permissions=configurable.get("approved_permissions") or [],
         )
         result = run_agent_turn(
             state=state,

@@ -1,7 +1,15 @@
 import os
+from typing import Annotated, Literal
 from datetime import datetime
 
+from langchain_core.messages import ToolMessage
+from langchain_core.tools import InjectedToolCallId
+from langgraph.types import Command
+from pydantic import BaseModel
+
 from ..config import DAILY_MEMORY_DIR, LEGACY_USER_PROFILE_PATH, MEMORY_MD_PATH, USER_MD_PATH
+from ..control import build_plan_state
+from ..logger import audit_logger
 from .base import myopenclaw_tool
 from .sandbox_tools import (
     execute_office_shell,
@@ -131,6 +139,48 @@ def read_daily_memory(date: str) -> str:
     return content or f"Daily memory for {date} is empty."
 
 
+class PlanStepInput(BaseModel):
+    step: str
+    status: Literal["pending", "in_progress", "completed"]
+
+
+@myopenclaw_tool(tags=("control", "plan"))
+def update_plan(
+    steps: list[PlanStepInput],
+    explanation: str = "",
+    tool_call_id: Annotated[str, InjectedToolCallId] = "",
+) -> Command:
+    """Update the runtime task plan with explicit step status."""
+    items = [{"step": step.step, "status": step.status} for step in steps]
+    plan_state = build_plan_state(items, explanation=explanation)
+    audit_logger.log_event(
+        thread_id="tool",
+        event="plan_updated",
+        event_family="runtime",
+        status="ok",
+        tool="update_plan",
+        payload={
+            "steps": plan_state["items"],
+            "explanation": plan_state["explanation"],
+        },
+    )
+    summary = "Plan updated."
+    if plan_state["items"]:
+        summary += f" Active steps: {len(plan_state['items'])}."
+    return Command(
+        update={
+            "plan_state": plan_state,
+            "messages": [
+                ToolMessage(
+                    content=summary,
+                    name="update_plan",
+                    tool_call_id=tool_call_id,
+                )
+            ],
+        }
+    )
+
+
 BUILTIN_TOOLS = [
     get_current_time,
     calculator,
@@ -140,6 +190,7 @@ BUILTIN_TOOLS = [
     append_project_memory,
     append_daily_memory,
     read_daily_memory,
+    update_plan,
     list_office_files,
     read_office_file,
     write_office_file,
